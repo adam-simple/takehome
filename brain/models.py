@@ -12,6 +12,7 @@ class ChatMessage(BaseModel):
         message = role + ": " + self.content
         return message
 
+
 class ChatHistory(BaseModel):
     messages: List[ChatMessage] = []
 
@@ -19,13 +20,10 @@ class ChatHistory(BaseModel):
         messages = []
         for i, message in enumerate(self.messages):
             message_str = str(message)
-            # if i == len(self.messages) - 1 and not message.from_creator:
-            #     message_str = (
-            #         "(The fan just sent the following message which your message must respond to): "
-            #         + message_str
-            #     )
+            if i == len(self.messages) - 1 and not message.from_creator:
+                message_str = "(Most recent message from fan): " + message_str
             messages.append(message_str)
         return "\n".join(messages)
-    
+
     def model_dump_json(self, **kwargs):
         return str(self)
