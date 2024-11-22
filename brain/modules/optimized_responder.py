@@ -29,15 +29,9 @@ class OptimizedResponderModule(dspy.Module):
         """
         super().__init__()
 
-        # Create predictor with enhanced reasoning
-        reasoning = dspy.OutputField(
-            prefix="Reasoning: Let's think step by step about how to respond in our client's voice:\n"
-            "1. Consider the context and tone of the conversation\n"
-            "2. Identify key themes and interests from the chat history\n"
-            "3. Formulate a response that matches our client's authentic style\n"
-            "We",
+        self.predictor = dspy.ChainOfThought(
+            Responder,
         )
-        self.predictor = dspy.ChainOfThought(Responder, reasoning=reasoning)
 
         # Format training examples if provided
         if training_examples:
