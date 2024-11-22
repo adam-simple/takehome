@@ -3,6 +3,7 @@ from typing import List, Tuple, Optional
 from datetime import datetime
 from signatures.responder import Responder
 from models import ChatHistory
+from .topic_filter import TopicFilter
 import logging
 from dspy.teleprompt import KNNFewShot
 
@@ -22,6 +23,9 @@ class OptimizedResponderModule(dspy.Module):
         k: int = 3,
     ):
         super().__init__()
+
+        # Initialize topic filter
+        self.topic_filter = TopicFilter()
 
         self.predictor = dspy.ChainOfThought(
             Responder,
@@ -75,8 +79,20 @@ class OptimizedResponderModule(dspy.Module):
             # Format history with timing information
             formatted_history = self._format_history_with_roles(parsed_history)
 
-            # Use the optimized predictor to generate response
-            return self.optimized_predictor(chat_history=formatted_history)
+            # Generate initial response
+            response = self.optimized_predictor(chat_history=formatted_history)
+
+            # Check if response is safe using topic filter
+            is_safe, reasoning, suggested_fix = self.topic_filter(response.output)
+
+            if not is_safe:
+                logger.info(f"Response filtered. Reason: {reasoning}")
+                if suggested_fix:
+                    response.output = suggested_fix
+                else:
+                    response.output = "I'd love to continue our chat here on OnlyFans! What would you like to talk about?"
+
+            return response
 
         except Exception as e:
             logger.error(f"Error generating response: {str(e)}")

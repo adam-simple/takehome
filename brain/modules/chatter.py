@@ -1,33 +1,38 @@
 import dspy
+import logging
 from typing import Optional
 from models import ChatHistory
 from .optimized_responder import OptimizedResponderModule
 from data_loader import load_training_data
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 class ChatterModule(dspy.Module):
-    """
-    A module that manages chat interactions using an optimized responder
-    trained on example conversations.
-    """
+    """Main module for handling chat interactions."""
 
     def __init__(self, examples: Optional[dict] = None):
         super().__init__()
-        # Load training examples from file if not provided directly
-        training_examples = examples if examples is not None else load_training_data()
-        self.responder = OptimizedResponderModule(training_examples=training_examples)
+        training_examples = load_training_data() if not examples else examples
+        self.responder = OptimizedResponderModule(training_examples)
 
-    def forward(
-        self,
-        chat_history: ChatHistory,
-    ):
+    def forward(self, chat_history: ChatHistory) -> dspy.Prediction:
         """
-        Generate a response based on the chat history using the optimized responder.
+        Process chat history and generate a safe response.
 
         Args:
-            chat_history: The conversation history to respond to
+            chat_history: The conversation history
 
         Returns:
-            The generated response from the optimized responder
+            A prediction containing the filtered response
         """
-        return self.responder(chat_history=chat_history)
+        try:
+            return self.responder(chat_history=chat_history)
+        except Exception as e:
+            logger.error(f"Error generating response: {str(e)}")
+            # Return a safe fallback response
+            return dspy.Prediction(
+                output="I'm having trouble responding right now. Let's continue our chat on OnlyFans!"
+            )
