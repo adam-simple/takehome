@@ -6,6 +6,7 @@ from models import ChatHistory
 from .topic_filter import TopicFilter
 import logging
 from dspy.teleprompt import KNNFewShot
+from signatures.emotion import EmotionSignature
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -34,6 +35,9 @@ class OptimizedResponderModule(dspy.Module):
             when generating responses. Maintain consistency with the creator's voice and style.
             """,
         )
+
+        # Initialize emotion detector
+        self.emotion_detector = dspy.ChainOfThought(EmotionSignature)
 
         # Format training examples if provided
         if training_examples:
@@ -81,10 +85,47 @@ class OptimizedResponderModule(dspy.Module):
                 break
         return recent_responses
 
+    def _analyze_emotion(self, message: str) -> dict:
+        """Analyze emotional content of a message."""
+        try:
+            result = self.emotion_detector(message=message)
+            return {
+                "emotion": result.detected_emotion,
+                "intensity": result.intensity,
+                "recommended_tone": result.recommended_tone,
+            }
+        except Exception as e:
+            logger.error(f"Error analyzing emotion: {str(e)}")
+            return {
+                "emotion": "neutral",
+                "intensity": 3,
+                "recommended_tone": "balanced",
+            }
+
     def forward(self, chat_history: dict) -> dspy.Prediction:
         try:
             # Parse and validate chat history
             parsed_history = ChatHistory.model_validate(chat_history)
+
+            # Get the fan's last message
+            last_fan_message = next(
+                (
+                    msg
+                    for msg in reversed(parsed_history.messages)
+                    if not msg.from_creator
+                ),
+                None,
+            )
+
+            # Analyze emotion if there's a fan message
+            emotion_context = ""
+            if last_fan_message:
+                emotion_info = self._analyze_emotion(last_fan_message.content)
+                emotion_context = (
+                    f"\nThe fan's message shows {emotion_info['emotion']} "
+                    f"emotion with intensity {emotion_info['intensity']}. "
+                    f"Respond with a {emotion_info['recommended_tone']} tone."
+                )
 
             # Format history with timing information
             formatted_history = self._format_history_with_roles(parsed_history)
@@ -92,16 +133,17 @@ class OptimizedResponderModule(dspy.Module):
             # Get recent responses to avoid repetition
             recent_responses = self._get_recent_responses(parsed_history)
 
-            # Add recent responses to context
+            # Add recent responses and emotion context
             context_with_history = (
                 f"{formatted_history}\n\n"
                 f"Your recent responses were:\n"
                 f"{chr(10).join(recent_responses)}\n\n"
                 f"Please provide a response that maintains your voice while avoiding "
                 f"repeating similar phrases or ideas from your recent messages."
+                f"{emotion_context}"
             )
 
-            # Generate initial response with enhanced context
+            # Generate response with enhanced context
             response = self.optimized_predictor(chat_history=context_with_history)
 
             # Check if response is safe using topic filter
