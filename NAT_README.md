@@ -13,3 +13,4 @@ Other notes:
 - When I upgraded DSPy to 2.5+, I started getting errors about using the Together model directly (as opposed to via dspy.LM).  That's why the interface there changed.
 - Given all the layers/modules, this thing is pretty slow.  Lots of 429 errors.  It does eventually return a response though.  Occasionally there are some funky errors, especially when messages get filtered, but for the most part it works.
 - I leaned on Cursor fairly heavily, but there has been a ton of API churn and it often got it wrong.  Thankfully between the DSPy GitHub repo and the docs it didn't take me too long to sort out most of the issues I encountered.
+- I probably spent three hours on this.  One hour on Thursday, and two hours today (Friday).
