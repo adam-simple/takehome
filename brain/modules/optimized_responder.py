@@ -31,6 +31,11 @@ class OptimizedResponderModule(dspy.Module):
 
         self.predictor = dspy.ChainOfThought(
             Responder,
+            context_prompt="""
+            You are responding as the creator. Review the conversation history, paying special 
+            attention to which messages are from the creator vs from users. Maintain consistency 
+            with the creator's voice and style when generating responses.
+            """,
         )
 
         # Format training examples if provided
@@ -42,7 +47,7 @@ class OptimizedResponderModule(dspy.Module):
                 # Convert training examples to the format KNNFewShot expects
                 formatted_examples = [
                     dspy.Example(
-                        chat_history=str(history),  # Use ChatHistory's __str__ method
+                        chat_history=self._format_history_with_roles(history),
                         output=output,
                     ).with_inputs("chat_history")
                     for history, output in training_examples
@@ -62,6 +67,16 @@ class OptimizedResponderModule(dspy.Module):
             )
             self.optimized_predictor = self.predictor
 
+    def _format_history_with_roles(self, chat_history: ChatHistory) -> str:
+        """
+        Format chat history with explicit role labels to help the model understand context.
+        """
+        formatted_messages = []
+        for msg in chat_history.messages:
+            role = "Creator" if msg.from_creator else "User"
+            formatted_messages.append(f"{role}: {msg.content}")
+        return "\n".join(formatted_messages)
+
     def forward(self, chat_history: dict) -> dspy.Prediction:
         """
         Generate a response based on the chat history using KNN-retrieved examples.
@@ -77,7 +92,7 @@ class OptimizedResponderModule(dspy.Module):
             parsed_history = ChatHistory.model_validate(chat_history)
 
             # Use ChatHistory's built-in string representation
-            formatted_history = str(parsed_history)
+            formatted_history = self._format_history_with_roles(parsed_history)
 
             # Use the optimized predictor to generate response
             return self.optimized_predictor(chat_history=formatted_history)
@@ -98,7 +113,7 @@ class OptimizedResponderModule(dspy.Module):
             # Convert new examples to the format KNNFewShot expects
             formatted_examples = [
                 dspy.Example(
-                    chat_history=str(history),  # Use ChatHistory's __str__ method
+                    chat_history=self._format_history_with_roles(history),
                     output=output,
                 ).with_inputs("chat_history")
                 for history, output in new_examples
