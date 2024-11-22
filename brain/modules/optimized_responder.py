@@ -1,5 +1,6 @@
 import dspy
 from typing import List, Tuple, Optional
+from datetime import datetime
 from signatures.responder import Responder
 from models import ChatHistory
 import logging
@@ -20,21 +21,13 @@ class OptimizedResponderModule(dspy.Module):
         training_examples: Optional[List[Tuple[ChatHistory, str]]] = None,
         k: int = 3,
     ):
-        """
-        Initialize the optimized responder module.
-
-        Args:
-            training_examples: List of (ChatHistory, output) tuples for training
-            k: Number of nearest neighbors to use for few-shot examples
-        """
         super().__init__()
 
         self.predictor = dspy.ChainOfThought(
             Responder,
             context_prompt="""
-            You are responding as the creator. Review the conversation history, paying special 
-            attention to which messages are from the creator vs from users. Maintain consistency 
-            with the creator's voice and style when generating responses.
+            You are responding as the creator. Review the conversation history and timing context
+            when generating responses. Maintain consistency with the creator's voice and style.
             """,
         )
 
@@ -44,7 +37,6 @@ class OptimizedResponderModule(dspy.Module):
                 logger.info(
                     f"Initializing optimizer with {len(training_examples)} training examples"
                 )
-                # Convert training examples to the format KNNFewShot expects
                 formatted_examples = [
                     dspy.Example(
                         chat_history=self._format_history_with_roles(history),
@@ -53,7 +45,7 @@ class OptimizedResponderModule(dspy.Module):
                     for history, output in training_examples
                 ]
 
-                # Initialize KNNFewShot and compile the predictor
+                # Initialize KNNFewShot with trainset and compile the predictor
                 optimizer = KNNFewShot(k=k, trainset=formatted_examples)
                 self.optimized_predictor = optimizer.compile(self.predictor)
                 logger.info("Successfully compiled optimizer with training examples")
@@ -61,37 +53,26 @@ class OptimizedResponderModule(dspy.Module):
                 logger.error(f"Failed to initialize optimizer: {str(e)}")
                 raise
         else:
-            # If no training examples, just use the predictor directly
             logger.warning(
                 "No training examples provided - will use predictor without optimization"
             )
             self.optimized_predictor = self.predictor
 
     def _format_history_with_roles(self, chat_history: ChatHistory) -> str:
-        """
-        Format chat history with explicit role labels to help the model understand context.
-        """
+        """Format chat history with explicit role labels and timing information."""
         formatted_messages = []
         for msg in chat_history.messages:
-            role = "Creator" if msg.from_creator else "User"
-            formatted_messages.append(f"{role}: {msg.content}")
+            role = "Creator" if msg.from_creator else "Fan"
+            time_str = msg.timestamp.strftime("%I:%M %p")
+            formatted_messages.append(f"[{time_str}] {role}: {msg.content}")
         return "\n".join(formatted_messages)
 
     def forward(self, chat_history: dict) -> dspy.Prediction:
-        """
-        Generate a response based on the chat history using KNN-retrieved examples.
-
-        Args:
-            chat_history: Dictionary containing the conversation history
-
-        Returns:
-            dspy.Prediction containing the generated response
-        """
         try:
             # Parse and validate chat history
             parsed_history = ChatHistory.model_validate(chat_history)
 
-            # Use ChatHistory's built-in string representation
+            # Format history with timing information
             formatted_history = self._format_history_with_roles(parsed_history)
 
             # Use the optimized predictor to generate response
@@ -102,15 +83,8 @@ class OptimizedResponderModule(dspy.Module):
             raise
 
     def update_training(self, new_examples: List[Tuple[ChatHistory, str]]):
-        """
-        Update the optimizer with new training examples.
-
-        Args:
-            new_examples: List of new (ChatHistory, output) training examples
-        """
         try:
             logger.info(f"Updating optimizer with {len(new_examples)} examples")
-            # Convert new examples to the format KNNFewShot expects
             formatted_examples = [
                 dspy.Example(
                     chat_history=self._format_history_with_roles(history),
@@ -119,7 +93,6 @@ class OptimizedResponderModule(dspy.Module):
                 for history, output in new_examples
             ]
 
-            # Create new optimizer and compile with new examples
             optimizer = KNNFewShot(k=3, trainset=formatted_examples)
             self.optimized_predictor = optimizer.compile(self.predictor)
             logger.info("Successfully updated optimizer")
