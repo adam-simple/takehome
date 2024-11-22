@@ -74,7 +74,7 @@ class OptimizedResponderModule(dspy.Module):
         """
         try:
             # Parse and validate chat history
-            parsed_history = ChatHistory.parse_obj(chat_history)
+            parsed_history = ChatHistory.model_validate(chat_history)
 
             # Use ChatHistory's built-in string representation
             formatted_history = str(parsed_history)
