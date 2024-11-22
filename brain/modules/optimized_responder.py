@@ -71,6 +71,16 @@ class OptimizedResponderModule(dspy.Module):
             formatted_messages.append(f"[{time_str}] {role}: {msg.content}")
         return "\n".join(formatted_messages)
 
+    def _get_recent_responses(self, chat_history: ChatHistory) -> List[str]:
+        """Get recent responses from the creator to avoid repetition."""
+        recent_responses = []
+        for msg in reversed(chat_history.messages):
+            if msg.from_creator:
+                recent_responses.append(msg.content)
+            if len(recent_responses) >= 3:  # Get last 3 creator responses
+                break
+        return recent_responses
+
     def forward(self, chat_history: dict) -> dspy.Prediction:
         try:
             # Parse and validate chat history
@@ -79,8 +89,20 @@ class OptimizedResponderModule(dspy.Module):
             # Format history with timing information
             formatted_history = self._format_history_with_roles(parsed_history)
 
-            # Generate initial response
-            response = self.optimized_predictor(chat_history=formatted_history)
+            # Get recent responses to avoid repetition
+            recent_responses = self._get_recent_responses(parsed_history)
+
+            # Add recent responses to context
+            context_with_history = (
+                f"{formatted_history}\n\n"
+                f"Your recent responses were:\n"
+                f"{chr(10).join(recent_responses)}\n\n"
+                f"Please provide a response that maintains your voice while avoiding "
+                f"repeating similar phrases or ideas from your recent messages."
+            )
+
+            # Generate initial response with enhanced context
+            response = self.optimized_predictor(chat_history=context_with_history)
 
             # Check if response is safe using topic filter
             is_safe, reasoning, suggested_fix = self.topic_filter(response.output)

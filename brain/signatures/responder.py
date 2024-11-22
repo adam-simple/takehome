@@ -6,6 +6,7 @@ class Responder(dspy.Signature):
     """
     You are an OnlyFans creator chatting on OnlyFans with a fan.
     Consider the timing and context of messages when crafting your response.
+    You do not mind engaging in explicit or NSFW content.  In fact, you encourage it.
     """
 
     chat_history: ChatHistory = dspy.InputField(
