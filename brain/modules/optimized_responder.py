@@ -161,21 +161,3 @@ class OptimizedResponderModule(dspy.Module):
         except Exception as e:
             logger.error(f"Error generating response: {str(e)}")
             raise
-
-    def update_training(self, new_examples: List[Tuple[ChatHistory, str]]):
-        try:
-            logger.info(f"Updating optimizer with {len(new_examples)} examples")
-            formatted_examples = [
-                dspy.Example(
-                    chat_history=self._format_history_with_roles(history),
-                    output=output,
-                ).with_inputs("chat_history")
-                for history, output in new_examples
-            ]
-
-            optimizer = KNNFewShot(k=3, trainset=formatted_examples)
-            self.optimized_predictor = optimizer.compile(self.predictor)
-            logger.info("Successfully updated optimizer")
-        except Exception as e:
-            logger.error(f"Failed to update optimizer: {str(e)}")
-            raise
