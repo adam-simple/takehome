@@ -12,7 +12,6 @@ lm = Together(
     top_k=50,
     repetition_penalty=1.2,
     stop=["<|eot_id|>", "<|eom_id|>", "\n\n---\n\n", "\n\n---", "---", "\n---"],
-    # stop=["\n", "\n\n"],
 )
 
 dspy.settings.configure(lm=lm)
@@ -22,6 +21,9 @@ chatter = ChatterModule(examples=None)
 while True:
     # Get user input
     user_input = input("You: ")
+
+    if user_input == "exit":
+        break
 
     # Append user input to chat history
     chat_history.messages.append(
@@ -45,5 +47,5 @@ while True:
     print()
     print("Response:", response)
     print()
-    # uncomment this line to see the 
+    # uncomment this line to see the
     # lm.inspect_history(n=1)
