@@ -5,7 +5,9 @@ from lms.together import Together
 from modules.chatter import ChatterModule
 
 lm = Together(
-    model="meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
+    # model="meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
+    model="meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+    # model="meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
     temperature=0.5,
     max_tokens=1000,
     top_p=0.7,
@@ -31,7 +33,7 @@ while True:
         ),
     )
 
-    # Send request to endpoint
+    # Generate response
     response = chatter(chat_history=chat_history).output
 
     # Append response to chat history
@@ -41,9 +43,10 @@ while True:
             content=response,
         ),
     )
+
     # Print response
     print()
     print("Response:", response)
     print()
-    # uncomment this line to see the 
-    # lm.inspect_history(n=1)
+    # uncomment this line to see the
+    lm.inspect_history(n=3)
