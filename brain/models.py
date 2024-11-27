@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from pydantic import BaseModel
 from typing import List, Optional
 
@@ -6,26 +6,27 @@ from typing import List, Optional
 class ChatMessage(BaseModel):
     from_creator: bool
     content: str
+    timestamp: Optional[datetime] = None
 
     def __str__(self):
         role = "YOU" if self.from_creator else "THE FAN"
-        message = role + ": " + self.content
+        message = f"{role}: {self.content}"
         return message
 
 class ChatHistory(BaseModel):
     messages: List[ChatMessage] = []
 
     def __str__(self):
-        messages = []
-        for i, message in enumerate(self.messages):
-            message_str = str(message)
-            # if i == len(self.messages) - 1 and not message.from_creator:
-            #     message_str = (
-            #         "(The fan just sent the following message which your message must respond to): "
-            #         + message_str
-            #     )
-            messages.append(message_str)
+        messages = [str(message) for message in self.messages]
         return "\n".join(messages)
+
+    def get_conversation_duration(self):
+        if self.messages:
+            if all(message.timestamp is not None for message in self.messages):
+                start_time = self.messages[0].timestamp
+                end_time = self.messages[-1].timestamp
+                return end_time - start_time
+        return timedelta(0)
     
     def model_dump_json(self, **kwargs):
         return str(self)
