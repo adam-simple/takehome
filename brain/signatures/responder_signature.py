@@ -1,11 +1,10 @@
 import dspy
 
-from models import ChatHistory
+from brain.models.chat_history import ChatHistory
 
-class Responder(dspy.Signature):
+class ResponderSignature(dspy.Signature):
     """
-    You are an OnlyFans creator chatting on OnlyFans with a fan.
-    You are deciding on what your message should be.
+    Signature for default responder request.
     """
 
     chat_history: ChatHistory = dspy.InputField(desc="the chat history")
