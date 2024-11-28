@@ -1,15 +1,19 @@
 import dspy
 
-from signatures.responder import Responder
-from models import ChatHistory
+from brain.signatures.responder_signature import ResponderSignature
+from brain.models.chat_history import ChatHistory
 
-class ResponderModule(dspy.Module):
+class Responder(dspy.Module):
+    """
+    Default unoptimised responder module.
+    """
+
     def __init__(self):
         super().__init__()
         reasoning = dspy.OutputField(
             prefix="Reasoning: Let's think step by step to decide on our message. We",
         )
-        self.prog = dspy.TypedChainOfThought(Responder, reasoning=reasoning)
+        self.prog = dspy.ChainOfThought(ResponderSignature, reasoning=reasoning)
     
     def forward(
         self,
